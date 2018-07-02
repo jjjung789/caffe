@@ -22,13 +22,13 @@ class Classifier {
  public:
   Classifier(const string& model_file,
              const string& trained_file,
-             //const string& mean_file,
+//             const string& mean_file,
              const string& label_file);
 
   std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
 
  private:
-  void SetMean(const string& mean_file);
+//  void SetMean(const string& mean_file);
 
   std::vector<float> Predict(const cv::Mat& img);
 
@@ -47,7 +47,7 @@ class Classifier {
 
 Classifier::Classifier(const string& model_file,
                        const string& trained_file,
-                      // const string& mean_file,
+//                       const string& mean_file,
                        const string& label_file) {
 #ifdef CPU_ONLY
   Caffe::set_mode(Caffe::CPU);
@@ -69,7 +69,9 @@ Classifier::Classifier(const string& model_file,
   input_geometry_ = cv::Size(input_layer->width(), input_layer->height());
 
   /* Load the binaryproto mean file. */
-  //SetMean(mean_file);
+//  SetMean(mean_file);
+//  mean_ = cv::Mat( input_geometry_, CV_32FC3, cv::Scalar(129.1863,104.7624,93.5940));
+  mean_ = cv::Mat( input_geometry_, CV_32FC3, cv::Scalar(93.5940,104.7624,129.1863));
 
   /* Load labels. */
   std::ifstream labels(label_file.c_str());
@@ -117,35 +119,35 @@ std::vector<Prediction> Classifier::Classify(const cv::Mat& img, int N) {
 }
 
 /* Load the mean file in binaryproto format. */
-void Classifier::SetMean(const string& mean_file) {
-  BlobProto blob_proto;
-  ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
+// void Classifier::SetMean(const string& mean_file) {
+//   BlobProto blob_proto;
+//   ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
 
-  /* Convert from BlobProto to Blob<float> */
-  Blob<float> mean_blob;
-  mean_blob.FromProto(blob_proto);
-  CHECK_EQ(mean_blob.channels(), num_channels_)
-    << "Number of channels of mean file doesn't match input layer.";
+//   /* Convert from BlobProto to Blob<float> */
+//   Blob<float> mean_blob;
+//   mean_blob.FromProto(blob_proto);
+//   CHECK_EQ(mean_blob.channels(), num_channels_)
+//     << "Number of channels of mean file doesn't match input layer.";
 
-  /* The format of the mean file is planar 32-bit float BGR or grayscale. */
-  std::vector<cv::Mat> channels;
-  float* data = mean_blob.mutable_cpu_data();
-  for (int i = 0; i < num_channels_; ++i) {
-    /* Extract an individual channel. */
-    cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
-    channels.push_back(channel);
-    data += mean_blob.height() * mean_blob.width();
-  }
+//   /* The format of the mean file is planar 32-bit float BGR or grayscale. */
+//   std::vector<cv::Mat> channels;
+//   float* data = mean_blob.mutable_cpu_data();
+//   for (int i = 0; i < num_channels_; ++i) {
+//     /* Extract an individual channel. */
+//     cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
+//     channels.push_back(channel);
+//     data += mean_blob.height() * mean_blob.width();
+//   }
 
-  /* Merge the separate channels into a single image. */
-  cv::Mat mean;
-  cv::merge(channels, mean);
+//   /* Merge the separate channels into a single image. */
+//   cv::Mat mean;
+//   cv::merge(channels, mean);
 
-  /* Compute the global mean pixel value and create a mean image
-   * filled with this value. */
-  cv::Scalar channel_mean = cv::mean(mean);
-  mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
-}
+//   /* Compute the global mean pixel value and create a mean image
+//    * filled with this value. */
+//   cv::Scalar channel_mean = cv::mean(mean);
+//   mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
+// }
 
 std::vector<float> Classifier::Predict(const cv::Mat& img) {
   Blob<float>* input_layer = net_->input_blobs()[0];
@@ -214,10 +216,7 @@ void Classifier::Preprocess(const cv::Mat& img,
     sample_resized.convertTo(sample_float, CV_32FC1);
 
   cv::Mat sample_normalized;
-  cv::Mat avgimg(img.rows, img.cols, CV_32FC3, cv::Scalar(129.1863,104.7624,93.5940));
-  cv::subtract(sample_float, avgimg, sample_normalized);
-//*0.00390625;
- // cv::subtract(sample_float, mean_, sample_normalized);
+  cv::subtract(sample_float, mean_, sample_normalized);
 
   /* This operation will write the separate BGR planes directly to the
    * input layer of the network because it is wrapped by the cv::Mat
@@ -241,8 +240,11 @@ int main(int argc, char** argv) {
 
   string model_file   = argv[1];
   string trained_file = argv[2];
- // string mean_file    = argv[3];
+//  string mean_file    = argv[3];
+//  string label_file   = argv[4];
   string label_file   = argv[3];
+
+//  Classifier classifier(model_file, trained_file, mean_file, label_file);
   Classifier classifier(model_file, trained_file, label_file);
 
   string file = argv[4];
@@ -265,4 +267,4 @@ int main(int argc, char** argv) {
 int main(int argc, char** argv) {
   LOG(FATAL) << "This example requires OpenCV; compile with USE_OPENCV.";
 }
-#endif // USE_OPENCV
+#endif  // USE_OPENCV
